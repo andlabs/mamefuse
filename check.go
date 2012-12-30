@@ -11,6 +11,7 @@ import (
 	"crypto/sha1"
 	"encoding/hex"
 	"bytes"
+	"strings"
 	"log"
 )
 
@@ -98,7 +99,9 @@ func (g *Game) CheckIn(rompath string) (bool, error) {
 	var roms = make(map[string]*ROM)
 	for i := range g.ROMs {
 		if g.ROMs[i].Status != nodump {	// otherwise games with known undumped ROMs will return "not found" because the map never depletes
-			roms[g.ROMs[i].Name] = &(g.ROMs[i])
+			// some ROM sets (scregg, for instance) have trailing spaces in the filenames given in he XML file (dc0.c6, in this example)
+			// TODO this will also remove leading spaces; is that correct?
+			roms[strings.TrimSpace(g.ROMs[i].Name)] = &(g.ROMs[i])
 		}
 	}
 
