@@ -106,17 +106,8 @@ func tryParent(which string, roms map[string]*ROM) (bool, error) {
 		return false, nil
 	}
 
-	if g.CloneOf != "" {
-		good, err := tryParent(g.CloneOf, roms)
-		if err != nil {
-			return false, err
-		}
-		if !good {
-			return false, nil
-		}
-	}
-	if g.ROMOf != "" && g.ROMOf != g.CloneOf {
-		good, err := tryParent(g.ROMOf, roms)
+	for _, parent := range g.Parents {
+		good, err := tryParent(parent, roms)
 		if err != nil {
 			return false, err
 		}
@@ -147,18 +138,8 @@ func (g *Game) CheckIn(rompath string) (bool, error) {
 		return false, nil
 	}
 
-	// TODO eliminate reptition from this and Find()?
-	if g.CloneOf != "" {
-		good, err := tryParent(g.CloneOf, roms)
-		if err != nil {
-			return false, err
-		}
-		if !good {
-			return false, nil
-		}
-	}
-	if g.ROMOf != "" && g.ROMOf != g.CloneOf {
-		good, err := tryParent(g.ROMOf, roms)
+	for _, parent := range g.Parents {
+		good, err := tryParent(parent, roms)
 		if err != nil {
 			return false, err
 		}
@@ -178,20 +159,10 @@ func (g *Game) Find() (found bool, err error) {
 	}
 
 	// find the parents
-	if g.CloneOf != "" {
-		found, err := games[g.CloneOf].Find()
+	for _, parent := range g.Parents {
+		found, err := games[parent].Find()
 		if err != nil {
-			return false, fmt.Errorf("error finding parent (cloneof) %s: %v", g.CloneOf, err)
-		}
-		// TODO really bail out?
-		if !found {
-			return false, err
-		}
-	}
-	if g.ROMOf != "" && g.ROMOf != g.CloneOf {
-		found, err := games[g.ROMOf].Find()
-		if err != nil {
-			return false, fmt.Errorf("error finding parent (romof) %s: %v", g.ROMOf, err)
+			return false, fmt.Errorf("error finding parent %s: %v", parent, err)
 		}
 		// TODO really bail out?
 		if !found {
