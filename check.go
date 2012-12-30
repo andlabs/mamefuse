@@ -56,7 +56,7 @@ func (g *Game) Filename(rompath string) string {
 	return filepath.Join(rompath, g.Name + ".zip")
 }
 
-func (g *Game) checkOneZip(zipname string, roms map[string]*ROM) (bool, error) {
+func (g *Game) checkOneZip(zipname string, roms map[string]*ROM, isParent bool) (bool, error) {
 	f, err := zip.OpenReader(zipname)
 	if os.IsNotExist(err) {		// if the file does not exist, try the next rompath
 		return false, nil
@@ -69,7 +69,10 @@ func (g *Game) checkOneZip(zipname string, roms map[string]*ROM) (bool, error) {
 	for _, file := range f.File {
 		rom, ok := roms[file.Name]
 		if !ok {				// not in archive
-			return false, nil
+			if isParent {		// if we're in a parent, we already walked over this file in the clone (or this file has a different name in the clone)
+				continue
+			}
+			return false, nil		// otherwise we have a problem
 		}
 		if file.UncompressedSize != rom.Size {
 			return false, nil
@@ -98,7 +101,7 @@ func (g *Game) CheckIn(rompath string) (bool, error) {
 	}
 
 	zipname := g.Filename(rompath)
-	good, err := g.checkOneZip(zipname, roms)
+	good, err := g.checkOneZip(zipname, roms, false)
 	if err != nil {
 		return false, err
 	} else if !good {
@@ -111,7 +114,7 @@ func (g *Game) CheckIn(rompath string) (bool, error) {
 			return false, nil
 		}
 		k := games[g.CloneOf]
-		good, err := k.checkOneZip(optimal[g.CloneOf], roms)
+		good, err := k.checkOneZip(optimal[g.CloneOf], roms, true)
 		if err != nil {
 			return false, err
 		} else if !good {
@@ -123,7 +126,7 @@ func (g *Game) CheckIn(rompath string) (bool, error) {
 			return false, nil
 		}
 		k := games[g.ROMOf]
-		good, err := k.checkOneZip(optimal[g.ROMOf], roms)
+		good, err := k.checkOneZip(optimal[g.ROMOf], roms, true)
 		if err != nil {
 			return false, err
 		} else if !good {
