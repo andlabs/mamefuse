@@ -94,10 +94,12 @@ func (g *Game) checkOneZip(zipname string, roms map[string]*ROM, isParent bool) 
 }
 
 func (g *Game) CheckIn(rompath string) (bool, error) {
-	// populate list of ROMS
+	// populate list of ROMs
 	var roms = make(map[string]*ROM)
 	for i := range g.ROMs {
-		roms[g.ROMs[i].Name] = &(g.ROMs[i])
+		if g.ROMs[i].Status != nodump {	// otherwise games with known undumped ROMs will return "not found" because the map never depletes
+			roms[g.ROMs[i].Name] = &(g.ROMs[i])
+		}
 	}
 
 	zipname := g.Filename(rompath)

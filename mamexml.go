@@ -7,12 +7,15 @@ import (
 	"log"
 )
 
-// CHDs only have Name and SHA1
+const nodump = "nodump"	// for ROM.Status
+
+// CHDs only have Name, SHA1, and Status
 type ROM struct {
 	Name	string		`xml:"name,attr"`
 	Size		uint32		`xml:"size,attr"`		// uint32 because that's what archive/zip.FIleHeader.UncompressedSize is
 	CRC32	string		`xml:"crc,attr"`
 	SHA1	string		`xml:"sha1,attr"`
+	Status	string		`xml:"status,attr"`
 }
 
 type Game struct {
