@@ -94,6 +94,40 @@ func (g *Game) checkOneZip(zipname string, roms map[string]*ROM, isParent bool) 
 	return true, nil					// all clear on this one
 }
 
+func tryParent(which string, roms map[string]*ROM) (bool, error) {
+	if optimal[which] == "" {		// if we reached here it should have been found
+		return false, nil
+	}
+	g := games[which]
+	good, err := g.checkOneZip(optimal[which], roms, true)
+	if err != nil {
+		return false, err
+	} else if !good {
+		return false, nil
+	}
+
+	if g.CloneOf != "" {
+		good, err := tryParent(g.CloneOf, roms)
+		if err != nil {
+			return false, err
+		}
+		if !good {
+			return false, nil
+		}
+	}
+	if g.ROMOf != "" && g.ROMOf != g.CloneOf {
+		good, err := tryParent(g.ROMOf, roms)
+		if err != nil {
+			return false, err
+		}
+		if !good {
+			return false, nil
+		}
+	}
+
+	return true, nil
+}
+
 func (g *Game) CheckIn(rompath string) (bool, error) {
 	// populate list of ROMs
 	var roms = make(map[string]*ROM)
@@ -115,30 +149,24 @@ func (g *Game) CheckIn(rompath string) (bool, error) {
 
 	// TODO eliminate reptition from this and Find()?
 	if g.CloneOf != "" {
-		if optimal[g.CloneOf] == "" {		// if we reached here it should have been found
-			return false, nil
-		}
-		k := games[g.CloneOf]
-		good, err := k.checkOneZip(optimal[g.CloneOf], roms, true)
+		good, err := tryParent(g.CloneOf, roms)
 		if err != nil {
 			return false, err
-		} else if !good {
+		}
+		if !good {
 			return false, nil
 		}
 	}
 	if g.ROMOf != "" && g.ROMOf != g.CloneOf {
-		if optimal[g.ROMOf] == "" {		// if we reached here it should have been found
-			return false, nil
-		}
-		k := games[g.ROMOf]
-		good, err := k.checkOneZip(optimal[g.ROMOf], roms, true)
+		good, err := tryParent(g.ROMOf, roms)
 		if err != nil {
 			return false, err
-		} else if !good {
+		}
+		if !good {
 			return false, nil
 		}
 	}
-	
+
 	// if we reached here everything we know about checked out, so if there are any leftover files in the game, that means something is wrong
 	return len(roms) == 0, nil
 }
