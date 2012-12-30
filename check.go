@@ -56,8 +56,7 @@ func (g *Game) Filename(rompath string) string {
 	return filepath.Join(rompath, g.Name + ".zip")
 }
 
-func (g *Game) CheckIn(rompath string) (bool, error) {
-	zipname := g.Filename(rompath)
+func (g *Game) checkOneZip(zipname string, roms map[string]*ROM) (bool, error) {
 	f, err := zip.OpenReader(zipname)
 	if os.IsNotExist(err) {		// if the file does not exist, try the next rompath
 		return false, nil
@@ -67,13 +66,6 @@ func (g *Game) CheckIn(rompath string) (bool, error) {
 	}
 	defer f.Close()
 
-	// populate list of ROMS
-	var roms = make(map[string]*ROM)
-	for i := range g.ROMs {
-		roms[g.ROMs[i].Name] = &(g.ROMs[i])
-	}
-
-	// now check
 	for _, file := range f.File {
 		rom, ok := roms[file.Name]
 		if !ok {				// not in archive
@@ -95,6 +87,24 @@ func (g *Game) CheckIn(rompath string) (bool, error) {
 		delete(roms, file.Name)		// mark as done
 	}
 
+	return true, nil					// all clear on this one
+}
+
+func (g *Game) CheckIn(rompath string) (bool, error) {
+	// populate list of ROMS
+	var roms = make(map[string]*ROM)
+	for i := range g.ROMs {
+		roms[g.ROMs[i].Name] = &(g.ROMs[i])
+	}
+
+	zipname := g.Filename(rompath)
+	good, err := g.checkOneZip(zipname, roms)
+	if err != nil {
+		return false, err
+	} else if !good {
+		return false, nil
+	}
+	
 	// if we reached here everything we know about checked out, so if there are any leftover files in the game, that means something is wrong
 	return len(roms) == 0, nil
 }
