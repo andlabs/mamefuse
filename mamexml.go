@@ -25,6 +25,9 @@ type Game struct {
 	// TODO do I need sampleof?
 	ROMs	[]ROM	`xml:"rom"`
 	CHDs	[]ROM	`xml:"disk"`
+
+	// prepared by getGames()
+	Parents	[]string	// [CloneOf, ROMOf] but only if either is specified and no repeats; avoids code duplication in check.go
 }
 
 var games = map[string]*Game{}
@@ -47,6 +50,13 @@ func getGames(filename string) {
 	}
 
 	for i := range g.Games {
-		games[g.Games[i].Name] = &(g.Games[i])
+		this := &(g.Games[i])
+		games[this.Name] = this
+		if this.CloneOf != "" {
+			this.Parents = append(this.Parents, this.CloneOf)
+		}
+		if this.ROMOf != "" && this.ROMOf != this.CloneOf {
+			this.Parents = append(this.Parents, this.ROMOf)
+		}
 	}
 }
