@@ -3,7 +3,6 @@ package main
 
 import (
 	"os"
-	"io"
 	"encoding/xml"
 	"log"
 )
@@ -18,43 +17,33 @@ type ROM struct {
 
 type Game struct {
 	Name	string	`xml:"name,attr"`
-	// TODO do I need romof, cloneof, etc.?
+	CloneOf	string	`xml:"cloneof,attr"`
+	ROMOf	string	`xml:"romof,attr"`
+	// TODO do I need sampleof?
 	ROMs	[]ROM	`xml:"rom"`
 	CHDs	[]ROM	`xml:"disk"`
 }
 
-var mamexmlname string
-var mamexml *xml.Decoder
+var games = map[string]*Game{}
 
-func mamexmlreadfatal(err error) {
-	log.Fatalf("could not read MAME XML file %s: %v\n", mamexmlname, err)
-}
-
-func openMAMEXML(filename string) {
-	mamexmlname = filename
-	f, err := os.Open(mamexmlname)
+func getGames(filename string) {
+	f, err := os.Open(filename)
 	if err != nil {
-		log.Fatalf("could not open MAME XML file %s: %v\n", mamexmlname, err)
+		log.Fatalf("could not open MAME XML file %s: %v", filename, err)
 	}
-	mamexml = xml.NewDecoder(f)
-	for {		// read until the start of the first game
-		t, err := mamexml.Token()
-		if err != nil {
-			mamexmlreadfatal(err)
-		}
-		if se, ok := t.(xml.StartElement); ok && se.Name.Local == "mame" {
-			break
-		}
-	}
-}
+	defer f.Close()
 
-func getNextGame() (game Game, eof bool) {
-	err := mamexml.Decode(&game)
-	if err == io.EOF {
-		eof = true
-		return
-	} else if err != nil {
-		mamexmlreadfatal(err)
+	var g struct {
+		Games	[]Game	`xml:"game"`
 	}
-	return
+
+	mamexml := xml.NewDecoder(f)
+	err = mamexml.Decode(&g)
+	if err != nil {
+		log.Fatalf("could not read MAME XML file %s: %v", filename, err)
+	}
+
+	for i := range g.Games {
+		games[g.Games[i].Name] = &(g.Games[i])
+	}
 }

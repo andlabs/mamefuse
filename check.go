@@ -108,3 +108,47 @@ func (g *Game) CheckIn(rompath string) (bool, error) {
 	// if we reached here everything we know about checked out, so if there are any leftover files in the game, that means something is wrong
 	return len(roms) == 0, nil
 }
+
+func (g *Game) Find() (found bool, err error) {
+	// did we find this already?
+	if optimal[g.Name] != "" {
+		return true, nil
+	}
+
+	// find the parents
+	if g.CloneOf != "" {
+		found, err := games[g.CloneOf].Find()
+		if err != nil {
+			return false, fmt.Errorf("error finding parent (cloneof) %s: %v", g.CloneOf, err)
+		}
+		// TODO really bail out?
+		if !found {
+			return false, err
+		}
+	}
+	if g.ROMOf != "" && g.ROMOf != g.CloneOf {
+		found, err := games[g.ROMOf].Find()
+		if err != nil {
+			return false, fmt.Errorf("error finding parent (romof) %s: %v", g.ROMOf, err)
+		}
+		// TODO really bail out?
+		if !found {
+			return false, err
+		}
+	}
+
+	// go through the directories
+	for _, d := range dirs {
+		found, err := g.CheckIn(d)
+		if err != nil {
+			return false, err
+		}
+		if found {
+			optimal[g.Name] = g.Filename(d)
+			return true, nil
+		}
+	}
+
+	// nope
+	return false, nil
+}
