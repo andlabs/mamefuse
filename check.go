@@ -4,11 +4,11 @@ package main
 import (
 	"fmt"
 	"os"
+	"io"
 	"path/filepath"
 	"archive/zip"
 	"strconv"
 	"crypto/sha1"
-	"io/ioutil"
 	"encoding/hex"
 	"bytes"
 	"log"
@@ -30,7 +30,7 @@ func crc32match(zipcrc uint32, gamecrc string) bool {
 func sha1check(zf *zip.File, expectstring string) (bool, error) {
 	expected, err := hex.DecodeString(expectstring)
 	if err != nil {
-		log,Fatalf("hex decode error reading sha1 (%q): %v", expectstring, err)
+		log.Fatalf("hex decode error reading sha1 (%q): %v", expectstring, err)
 	}
 
 	f, err := zf.Open()
@@ -40,18 +40,29 @@ func sha1check(zf *zip.File, expectstring string) (bool, error) {
 	defer f.Close()
 
 	sha1hash.Reset()
-	err = io.Copy(sha1hash, f)
+	n, err := io.Copy(sha1hash, f)
 	if err != nil {
 		return false, fmt.Errorf("could not read given zip file entry: %v", err)
 	}
+	// TODO could we have integer size/signedness conversion failure here? zf.UncompressedSize is not an int64
+	if n != int64(zf.UncompressedSize) {
+		return false, fmt.Errorf("short read from zip file or write to hash but no error returned (expected %d bytes; got %d)", int64(zf.UncompressedSize), n)
+	}
 
-	return bytes.Equal(expected, sha1.Sum(nil)), nil
+	return bytes.Equal(expected, sha1hash.Sum(nil)), nil
 }
 
-func (g *Game) check(rompath string) (bool, error) {
-	zipname := fllepath.Join(rompath, g.Name + ".zip")
+func (g *Game) Filename(rompath string) string {
+	return filepath.Join(rompath, g.Name + ".zip")
+}
+
+func (g *Game) CheckIn(rompath string) (bool, error) {
+	zipname := g.Filename(rompath)
 	f, err := zip.OpenReader(zipname)
-	if err != nil {
+	if os.IsNotExist(err) {		// if the file does not exist, try the next rompath
+		return false, nil
+	}
+	if err != nil {			// something different happened
 		return false, fmt.Errorf("could not open zip file %s: %v", zipname, err)
 	}
 	defer f.Close()
@@ -59,26 +70,29 @@ func (g *Game) check(rompath string) (bool, error) {
 	// populate list of files
 	var files = make(map[string]*zip.File)
 	for _, file := range f.File {
-		files[f.Name] = f
+		files[file.Name] = file
 	}
 
 	// now check
 	for _, rom := range g.ROMs {
-		file, ok := files[g.Name]
+		file, ok := files[rom.Name]
 		if !ok {				// not in archive
 			return false, nil
 		}
-		if file.UncompressedSize != g.Size {
+		if file.UncompressedSize != rom.Size {
 			return false, nil
 		}
-		if !crc32match(file.CRC32, g.CRC32) {
+		if !crc32match(file.CRC32, rom.CRC32) {
 			return false, nil
 		}
-		good, err := sha1check(file, g.SHA1)
+		good, err := sha1check(file, rom.SHA1)
 		if err != nil {
 			return false, fmt.Errorf("could not calculate SHA-1 sum of %s in %s: %v", g.Name, zipname, err)
 		}
-		delete(files, g.Name)		// mark as done
+		if !good {
+			return false, nil
+		}
+		delete(files, rom.Name)		// mark as done
 	}
 
 	// if we reached here everything we know about checked out, so if there are any leftover files in the zip, that means something is wrong

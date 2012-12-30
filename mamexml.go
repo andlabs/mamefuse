@@ -11,7 +11,7 @@ import (
 // CHDs only have Name and SHA1
 type ROM struct {
 	Name	string		`xml:"name,attr"`
-	Size		int64		`xml:"size,attr"`
+	Size		uint32		`xml:"size,attr"`		// uint32 because that's what archive/zip.FIleHeader.UncompressedSize is
 	CRC32	string		`xml:"crc,attr"`
 	SHA1	string		`xml:"sha1,attr"`
 }
@@ -57,11 +57,4 @@ func getNextGame() (game Game, eof bool) {
 		mamexmlreadfatal(err)
 	}
 	return
-}
-
-func main() {
-	openMAMEXML(os.Args[1])
-	for g, eof := getNextGame(); !eof; g, eof = getNextGame() {
-		log.Printf("%+v\n", g)
-	}
 }
