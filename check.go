@@ -104,6 +104,32 @@ func (g *Game) CheckIn(rompath string) (bool, error) {
 	} else if !good {
 		return false, nil
 	}
+
+	// TODO eliminate reptition from this and Find()?
+	if g.CloneOf != "" {
+		if optimal[g.CloneOf] == "" {		// if we reached here it should have been found
+			return false, nil
+		}
+		k := games[g.CloneOf]
+		good, err := k.checkOneZip(optimal[g.CloneOf], roms)
+		if err != nil {
+			return false, err
+		} else if !good {
+			return false, nil
+		}
+	}
+	if g.ROMOf != "" && g.ROMOf != g.CloneOf {
+		if optimal[g.ROMOf] == "" {		// if we reached here it should have been found
+			return false, nil
+		}
+		k := games[g.ROMOf]
+		good, err := k.checkOneZip(optimal[g.ROMOf], roms)
+		if err != nil {
+			return false, err
+		} else if !good {
+			return false, nil
+		}
+	}
 	
 	// if we reached here everything we know about checked out, so if there are any leftover files in the game, that means something is wrong
 	return len(roms) == 0, nil
