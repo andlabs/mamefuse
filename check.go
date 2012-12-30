@@ -67,15 +67,15 @@ func (g *Game) CheckIn(rompath string) (bool, error) {
 	}
 	defer f.Close()
 
-	// populate list of files
-	var files = make(map[string]*zip.File)
-	for _, file := range f.File {
-		files[file.Name] = file
+	// populate list of ROMS
+	var roms = make(map[string]*ROM)
+	for i := range g.ROMs {
+		roms[g.ROMs[i].Name] = &(g.ROMs[i])
 	}
 
 	// now check
-	for _, rom := range g.ROMs {
-		file, ok := files[rom.Name]
+	for _, file := range f.File {
+		rom, ok := roms[file.Name]
 		if !ok {				// not in archive
 			return false, nil
 		}
@@ -92,9 +92,9 @@ func (g *Game) CheckIn(rompath string) (bool, error) {
 		if !good {
 			return false, nil
 		}
-		delete(files, rom.Name)		// mark as done
+		delete(roms, file.Name)		// mark as done
 	}
 
-	// if we reached here everything we know about checked out, so if there are any leftover files in the zip, that means something is wrong
-	return len(files) == 0, nil
+	// if we reached here everything we know about checked out, so if there are any leftover files in the game, that means something is wrong
+	return len(roms) == 0, nil
 }
