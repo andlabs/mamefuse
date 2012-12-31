@@ -137,6 +137,8 @@ func (g *Game) Find() (found bool, err error) {
 	}
 
 	if len(roms) == 0 {		// no ROMs left to check (either has no ROMs or is just a CHD after BIOSes)
+		// TODO as this leaves optimal[g.Name] unset, we don't record that something has no ROMs to begin with
+		// the semantics will change when I convert this to a FUSE filesystem so this won't be an issue
 		return true, nil
 	}
 
