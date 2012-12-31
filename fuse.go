@@ -2,8 +2,10 @@
 package main
 
 import (
+	"os"
 	"github.com/hanwen/go-fuse/fuse"
 	"path/filepath"
+	"fmt"
 )
 
 // note to self: this needs to be an embed in a struct as DefaultFileSystem will implement the  methods I don't override here and have them return fuse.ENOSYS
@@ -40,7 +42,9 @@ func (fs *mamefuse) Open(name string, flags uint32, context *fuse.Context) (file
 			return nil, fuse.EIO	// TODO proper error
 		}
 		// according to the go-fuse source (fuse/file.go), fuse.LoopbackFile will take ownership of our *os.FIle, calling Close() on it itself
-		return fuse.LoopbackFile{f}, nil
+		loopfile := new(fuse.LoopbackFile)
+		loopfile.File =f
+		return loopfile, fuse.OK
 	case "chd":				// CHD
 		// ...
 	case "":					// folder
@@ -52,5 +56,5 @@ func (fs *mamefuse) Open(name string, flags uint32, context *fuse.Context) (file
 
 func (fs *mamefuse) OpenDir(name string, context *fuse.Context) (c []fuse.DirEntry, code fuse.Status) {
 	// ...
-	return nil, fuse.ENOSYS	// for now
+	return nil, fuse.ENOENT	// for now
 }

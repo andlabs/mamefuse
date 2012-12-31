@@ -4,9 +4,27 @@ package main
 import (
 	"fmt"
 	"os"
+	"github.com/hanwen/go-fuse/fuse"
+	"log"
 )
 
 func main() {
+	if len(os.Args) != 4 {
+		fmt.Fprintf(os.Stderr, "usage: %s mamexml dirlistfile mountpoint\n", os.Args[0])
+		os.Exit(1)
+	}
+	getGames(os.Args[1])
+	getDirList(os.Args[2])
+	startServer()
+	fs := fuse.NewPathNodeFs(new(mamefuse), nil)
+	mount, _, err := fuse.MountNodeFileSystem(os.Args[3], fs, nil)
+	if err != nil {
+		log.Fatalf("error launching FUSE file system: %v", err)
+	}
+	mount.Loop()
+}
+
+func x() {
 	if len(os.Args) != 4 {
 		fmt.Fprintf(os.Stderr, "usage: %s mamexml dirlistfile mountpoint\n", os.Args[0])
 		os.Exit(1)
