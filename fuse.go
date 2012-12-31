@@ -5,7 +5,6 @@ import (
 	"os"
 	"github.com/hanwen/go-fuse/fuse"
 	"path/filepath"
-	"fmt"
 )
 
 // note to self: this needs to be an embed in a struct as DefaultFileSystem will implement the  methods I don't override here and have them return fuse.ENOSYS
@@ -13,12 +12,12 @@ type mamefuse struct {
 	fuse.DefaultFileSystem
 }
 
-/*
-// TODO; not sure if I need this or not
 func (fs *mamefuse) GetAttr(name string, context *fuse.Context) (*fuse.Attr, fuse.Status) {
-	// ...
+	return &fuse.Attr{
+		Mode:	fuse.S_IFREG | 0644,
+		Size:		1024,
+	}, fuse.OK
 }
-*/
 
 func (fs *mamefuse) Open(name string, flags uint32, context *fuse.Context) (file fuse.File, code fuse.Status) {
 	basename := filepath.Base(name)
