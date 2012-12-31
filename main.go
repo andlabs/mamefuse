@@ -21,6 +21,8 @@ func main() {
 	if err != nil {
 		log.Fatalf("error launching FUSE file system: %v", err)
 	}
+	fs.Debug = true
+	mount.Debug = true
 	mount.Loop()
 }
 
