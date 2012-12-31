@@ -42,7 +42,7 @@ func (fs *mamefuse) Open(name string, flags uint32, context *fuse.Context) (file
 		}
 		// according to the go-fuse source (fuse/file.go), fuse.LoopbackFile will take ownership of our *os.FIle, calling Close() on it itself
 		loopfile := new(fuse.LoopbackFile)
-		loopfile.File =f
+		loopfile.File = f
 		return loopfile, fuse.OK
 	case "chd":				// CHD
 		// ...
