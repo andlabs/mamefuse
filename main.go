@@ -15,14 +15,14 @@ func main() {
 	}
 	getGames(os.Args[1])
 	getDirList(os.Args[2])
-	startServer()
 	fs := fuse.NewPathNodeFs(new(mamefuse), nil)
 	mount, _, err := fuse.MountNodeFileSystem(os.Args[3], fs, nil)
 	if err != nil {
 		log.Fatalf("error launching FUSE file system: %v", err)
 	}
-	fs.Debug = true
-	mount.Debug = true
+//	fs.Debug = true
+//	mount.Debug = true
+fmt.Println("starting server")
 	mount.Loop()
 }
 
@@ -33,6 +33,7 @@ func x() {
 	}
 	getGames(os.Args[1])
 	getDirList(os.Args[2])
+//	startServer()
 	for _, g := range games {
 		fmt.Printf("%12s ", g.Name)
 		if g.Found {			// already found (parent)
