@@ -136,6 +136,10 @@ func (g *Game) Find() (found bool, err error) {
 		games[parent].strikeROMs(roms)
 	}
 
+	if len(roms) == 0 {		// no ROMs left to check (either has no ROMs or is just a CHD after BIOSes)
+		return true, nil
+	}
+
 	// go through the directories, finding the right file
 	for _, d := range dirs {
 		found, err := g.checkIn(d, roms)
