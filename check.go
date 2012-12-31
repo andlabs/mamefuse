@@ -15,6 +15,10 @@ import (
 	"log"
 )
 
+// TODO:
+// - select one constructor syntax for the maps?
+// - condense map[string]*ROM into a named type?
+
 var sha1hash = sha1.New()
 
 func crc32match(zipcrc uint32, gamecrc string) bool {
