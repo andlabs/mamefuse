@@ -19,9 +19,28 @@ func (fs *mamefuse) GetAttr(name string, context *fuse.Context) (*fuse.Attr, fus
 */
 
 func (fs *mamefuse) Open(name string, flags uint32, context *fuse.Context) (file fuse.File, code fuse.Status) {
-	switch filepath.Ext(name) {
+	basename := filepath.Base(name)
+	switch filepath.Ext(basename) {
 	case "zip":				// ROM set
-		// ...
+		gamename := basename[:len(basename) - 4]
+		ret := make(chan string)
+		zipRequests <- zipRequest{
+			Game:	gamename,
+			Return:	ret,
+		}
+		zipname := <-ret
+		close(ret)
+		if zipname == "" {		// none given
+			// TODO handle error
+			return nil, fuse.ENOENT
+		}
+		f, err := os.Open(zipname)
+		if err != nil {
+			// TODO report error
+			return nil, fuse.EIO	// TODO proper error
+		}
+		// according to the go-fuse source (fuse/file.go), fuse.LoopbackFile will take ownership of our *os.FIle, calling Close() on it itself
+		return fuse.LoopbackFile{f}, nil
 	case "chd":				// CHD
 		// ...
 	case "":					// folder
