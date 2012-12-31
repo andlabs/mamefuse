@@ -53,12 +53,12 @@ func sha1check(zf *zip.File, expectstring string) (bool, error) {
 	return bytes.Equal(expected, sha1hash.Sum(nil)), nil
 }
 
-func (g *Game) Filename(rompath string) string {
+func (g *Game) filename_ROM(rompath string) string {
 	return filepath.Join(rompath, g.Name + ".zip")
 }
 
 func (g *Game) checkIn(rompath string, roms map[string]*ROM) (bool, error) {
-	zipname := g.Filename(rompath)
+	zipname := g.filename_ROM(rompath)
 	f, err := zip.OpenReader(zipname)
 	if os.IsNotExist(err) {		// if the file does not exist, try the next rompath
 		return false, nil
@@ -109,7 +109,7 @@ func (g *Game) strikeROMs(roms map[string]*ROM) {
 
 func (g *Game) Find() (found bool, err error) {
 	// did we find this already?
-	if optimal[g.Name] != "" {
+	if g.Found {
 		return true, nil
 	}
 
@@ -137,8 +137,8 @@ func (g *Game) Find() (found bool, err error) {
 	}
 
 	if len(roms) == 0 {		// no ROMs left to check (either has no ROMs or is just a CHD after BIOSes)
-		// TODO as this leaves optimal[g.Name] unset, we don't record that something has no ROMs to begin with
-		// the semantics will change when I convert this to a FUSE filesystem so this won't be an issue
+		// TODO this will be changed when we start looking for CHDs
+		g.Found = true
 		return true, nil
 	}
 
@@ -149,7 +149,8 @@ func (g *Game) Find() (found bool, err error) {
 			return false, err
 		}
 		if found {
-			optimal[g.Name] = g.Filename(d)
+			g.Found = true
+			g.ROMLoc = g.filename_ROM(d)
 			return true, nil
 		}
 	}

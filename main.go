@@ -6,8 +6,6 @@ import (
 	"os"
 )
 
-var optimal = map[string]string{}
-
 func main() {
 	if len(os.Args) != 4 {
 		fmt.Fprintf(os.Stderr, "usage: %s mamexml dirlistfile mountpoint\n", os.Args[0])
@@ -17,8 +15,8 @@ func main() {
 	getDirList(os.Args[2])
 	for _, g := range games {
 		fmt.Printf("%12s ", g.Name)
-		if optimal[g.Name] != "" {			// already found (parent)
-			fmt.Println(optimal[g.Name])
+		if g.Found {			// already found (parent)
+			fmt.Println(g.ROMLoc)
 			continue
 		}
 		found, err := g.Find()
@@ -27,7 +25,7 @@ func main() {
 		} else if !found {
 			fmt.Println("not found")
 		} else {
-			fmt.Println(optimal[g.Name])
+			fmt.Println(g.ROMLoc)
 		}
 	}
 }

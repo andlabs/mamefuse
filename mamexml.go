@@ -28,6 +28,11 @@ type Game struct {
 
 	// prepared by getGames()
 	Parents	[]string	// [CloneOf, ROMOf] but only if either is specified and no repeats; avoids code duplication in check.go
+
+	// prepared by Game.Find()
+	Found	bool
+	ROMLoc	string
+	CHDLoc	map[string]string
 }
 
 var games = map[string]*Game{}
