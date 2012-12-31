@@ -57,7 +57,8 @@ func (g *Game) Filename(rompath string) string {
 	return filepath.Join(rompath, g.Name + ".zip")
 }
 
-func (g *Game) checkOneZip(zipname string, roms map[string]*ROM, isParent bool) (bool, error) {
+func (g *Game) checkIn(rompath string, roms map[string]*ROM) (bool, error) {
+	zipname := g.Filename(rompath)
 	f, err := zip.OpenReader(zipname)
 	if os.IsNotExist(err) {		// if the file does not exist, try the next rompath
 		return false, nil
@@ -67,13 +68,14 @@ func (g *Game) checkOneZip(zipname string, roms map[string]*ROM, isParent bool) 
 	}
 	defer f.Close()
 
+	// true values will be written to this as we find valid ROMs
+	// if the length of this does not equal the length of roms when we're done; we missed something and therefore something else is wrong
+	var found = map[string]bool{}
+
 	for _, file := range f.File {
 		rom, ok := roms[file.Name]
 		if !ok {				// not in archive
-			if isParent {		// if we're in a parent, we already walked over this file in the clone (or this file has a different name in the clone)
-				continue
-			}
-			return false, nil		// otherwise we have a problem
+			return false, nil
 		}
 		if file.UncompressedSize != rom.Size {
 			return false, nil
@@ -88,38 +90,29 @@ func (g *Game) checkOneZip(zipname string, roms map[string]*ROM, isParent bool) 
 		if !good {
 			return false, nil
 		}
-		delete(roms, file.Name)		// mark as done
+		found[file.Name] = true		// mark as done
 	}
 
-	return true, nil					// all clear on this one
+	// if we reached here everything we know about checked out, so if there are any leftover files in the game, that means something is wrong
+	return len(roms) == len(found), nil
 }
 
-func tryParent(which string, roms map[string]*ROM) (bool, error) {
-	if optimal[which] == "" {		// if we reached here it should have been found
-		return false, nil
+// remove all ROMs belonging to this set and its parents from the list
+func (g *Game) strikeROMs(roms map[string]*ROM) {
+	for _, rom := range g.ROMs {
+		delete(roms, rom.Name)
 	}
-	g := games[which]
-	good, err := g.checkOneZip(optimal[which], roms, true)
-	if err != nil {
-		return false, err
-	} else if !good {
-		return false, nil
-	}
-
 	for _, parent := range g.Parents {
-		good, err := tryParent(parent, roms)
-		if err != nil {
-			return false, err
-		}
-		if !good {
-			return false, nil
-		}
+		games[parent].strikeROMs(roms)
 	}
-
-	return true, nil
 }
 
-func (g *Game) CheckIn(rompath string) (bool, error) {
+func (g *Game) Find() (found bool, err error) {
+	// did we find this already?
+	if optimal[g.Name] != "" {
+		return true, nil
+	}
+
 	// populate list of ROMs
 	var roms = make(map[string]*ROM)
 	for i := range g.ROMs {
@@ -130,35 +123,7 @@ func (g *Game) CheckIn(rompath string) (bool, error) {
 		}
 	}
 
-	zipname := g.Filename(rompath)
-	good, err := g.checkOneZip(zipname, roms, false)
-	if err != nil {
-		return false, err
-	} else if !good {
-		return false, nil
-	}
-
-	for _, parent := range g.Parents {
-		good, err := tryParent(parent, roms)
-		if err != nil {
-			return false, err
-		}
-		if !good {
-			return false, nil
-		}
-	}
-
-	// if we reached here everything we know about checked out, so if there are any leftover files in the game, that means something is wrong
-	return len(roms) == 0, nil
-}
-
-func (g *Game) Find() (found bool, err error) {
-	// did we find this already?
-	if optimal[g.Name] != "" {
-		return true, nil
-	}
-
-	// find the parents
+	// find the parents and remove their ROMs rom the list
 	for _, parent := range g.Parents {
 		found, err := games[parent].Find()
 		if err != nil {
@@ -168,11 +133,12 @@ func (g *Game) Find() (found bool, err error) {
 		if !found {
 			return false, err
 		}
+		games[parent].strikeROMs(roms)
 	}
 
-	// go through the directories
+	// go through the directories, finding the right file
 	for _, d := range dirs {
-		found, err := g.CheckIn(d)
+		found, err := g.checkIn(d, roms)
 		if err != nil {
 			return false, err
 		}
