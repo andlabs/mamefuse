@@ -15,7 +15,7 @@ func main() {
 	}
 	getGames(os.Args[1])
 	getDirList(os.Args[2])
-	fs := fuse.NewPathNodeFs(new(mamefuse), nil)
+	fs := fuse.NewPathNodeFs(&fuse.ReadonlyFileSystem{new(mamefuse)}, nil)
 	mount, _, err := fuse.MountNodeFileSystem(os.Args[3], fs, nil)
 	if err != nil {
 		log.Fatalf("error launching FUSE file system: %v", err)
