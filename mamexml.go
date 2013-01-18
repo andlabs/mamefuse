@@ -4,6 +4,8 @@ package main
 import (
 	"os"
 	"encoding/xml"
+	"strings"
+	"io"
 	"log"
 )
 
@@ -44,18 +46,32 @@ func getGames(filename string) {
 	}
 	defer f.Close()
 
-	var g struct {
-		Games	[]Game	`xml:"game"`
-	}
-
 	mamexml := xml.NewDecoder(f)
-	err = mamexml.Decode(&g)
-	if err != nil {
-		log.Fatalf("could not read MAME XML file %s: %v", filename, err)
+
+	// skip to the first game
+findFirst:
+	for {
+		t, err := mamexml.Token()
+		if err != nil {
+			log.Fatalf("error finding first game in MAME XML file %s: %v", filename, err)
+		}
+		switch e := t.(type) {
+		case xml.StartElement:
+			if strings.ToLower(e.Name.Local) == "mame" {
+				break findFirst
+			}
+		}
 	}
 
-	for i := range g.Games {
-		this := &(g.Games[i])
+	// now read everything
+	for {
+		this := new(Game)
+		err = mamexml.Decode(this)
+		if err == io.EOF {
+			break
+		} else if err != nil {
+			log.Fatalf("error reading game from MAME XML file %s: %v", filename, err)
+		}
 		games[this.Name] = this
 		if this.CloneOf != "" {
 			this.Parents = append(this.Parents, this.CloneOf)
