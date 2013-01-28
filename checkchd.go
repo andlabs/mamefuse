@@ -7,6 +7,7 @@ import (
 	"io"
 	"path/filepath"
 	"encoding/hex"
+	"encoding/binary"
 	"bytes"
 	"strings"
 	"log"
@@ -17,21 +18,46 @@ import (
 // - condense map[string]*ROM into a named type?
 // - not have sha1hash be global?
 
+var sha1Off = map[uint32]int64{
+	// right now using parent; comment has standard
+	3:	100,		// 80
+	4:	68,		// 48 (raw 88)
+	5:	104,		// 84 (raw 64)
+}
+
+const versionFieldOff = 12
+
 func sha1check_chd(f *os.File, expectstring string) (bool, error) {
 	expected, err := hex.DecodeString(expectstring)
 	if err != nil {
 		log.Fatalf("hex decode error reading sha1 (%q): %v", expectstring, err)
 	}
 
-	sha1hash.Reset()
-	n, err := io.Copy(sha1hash, f)
-	if err != nil {
-		return false, fmt.Errorf("could not read given zip file entry: %v", err)
-	}
-	// TODO figure out how to check filesize?
-	_ = n
+	var version uint32
+	var sha1 [20]byte
 
-	return bytes.Equal(expected, sha1hash.Sum(nil)), nil
+	_, err = f.Seek(versionFieldOff, 0)
+	if err != nil {
+		return false, fmt.Errorf("seek in CHD to find version number failed: %v", err)
+	}
+	err = binary.Read(f, binary.BigEndian, &version)
+	if err != nil {
+		return false, fmt.Errorf("read version number from CHD failed: %v", err)
+	}
+
+	if sha1Off[version] == 0 {
+		return false, fmt.Errorf("invalid CHD version %d", version)
+	}
+	_, err = f.Seek(sha1Off[version], 0)
+	if err != nil {
+		return false, fmt.Errorf("seek in CHD to get SHA-1 sum failed: %v", err)
+	}
+	_, err = io.ReadFull(f, sha1[:])
+	if err != nil {
+		return false, fmt.Errorf("read of SHA-1 failed: %v", err)
+	}
+
+	return bytes.Equal(expected, sha1[:]), nil
 }
 
 // TODO change filename_ROM to not be part of Game as well
@@ -98,6 +124,8 @@ func (g *Game) findCHDs() (found bool, err error) {
 	if g.Found {
 		return true, nil
 	}
+
+	g.CHDLoc = map[string]string{}
 
 	// populate list of CHDs
 	var chds = make(map[string]*ROM)
