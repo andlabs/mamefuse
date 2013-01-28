@@ -19,10 +19,10 @@ import (
 // - not have sha1hash be global?
 
 var sha1Off = map[uint32]int64{
-	// right now using parent; comment has standard
-	3:	100,		// 80
-	4:	68,		// 48 (raw 88)
-	5:	104,		// 84 (raw 64)
+	// right now using standard; comment has parent (raw if also available)
+	3:	80,		// 100
+	4:	48,		// 68 (raw 88)
+	5:	84,		// 104 (raw 64)
 }
 
 const versionFieldOff = 12
@@ -157,8 +157,8 @@ func (g *Game) findCHDs() (found bool, err error) {
 
 	// go through the directories, finding the right file
 	n := len(chds)
-	for _, d := range dirs {
-		for name, chd := range chds {
+	for name, chd := range chds {
+		for _, d := range dirs {
 			found, path, err := g.checkCHDIn(d, chd)
 			if err != nil {
 				return false, err
@@ -166,7 +166,7 @@ func (g *Game) findCHDs() (found bool, err error) {
 			if found {
 				g.CHDLoc[name] = path
 				n--
-				break
+				break		// found it in this dir; stop scanning dirs and go to the next CHD
 			}
 		}
 	}

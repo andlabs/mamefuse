@@ -6,6 +6,7 @@ import (
 	"github.com/hanwen/go-fuse/fuse"
 	"path/filepath"
 	"errors"
+"fmt"
 )
 
 var errNoSuchGame = errors.New("no such game")
@@ -81,6 +82,15 @@ func getattr(filename string) (*fuse.Attr, fuse.Status) {
 	return fuse.ToAttr(stat), fuse.OK
 }
 
+func getchdparts(basename string) (gamename string, chdname string) {
+fmt.Print(basename, " ")
+	basename = basename[:len(basename) - 4]
+	gamename, chdname = filepath.Split(basename)	// split out CHD filename
+	_, gamename = filepath.Split(gamename)			// and game name
+fmt.Println(gamename, " ", chdname)
+	return
+}
+
 func (fs *mamefuse) GetAttr(name string, context *fuse.Context) (*fuse.Attr, fuse.Status) {
 	basename := filepath.Base(name)
 	switch filepath.Ext(basename) {
@@ -95,6 +105,21 @@ func (fs *mamefuse) GetAttr(name string, context *fuse.Context) (*fuse.Attr, fus
 		// 2012/12/31 12:13:27 writer: Write/Writev failed, err: 22=invalid argument. opcode: LOOKUP
 		// but this works
 		a, err := getattr(g.ROMLoc)
+		return a, err
+	case ".chd":
+		gamename, chdname := getchdparts(basename)
+		if gamename == "" {		// we need a game name to disambiguate
+			return nil, fuse.ENOENT
+		}
+		g, err := getgame_fuseerr(gamename)
+		if err != fuse.OK {
+			return nil, err
+		}
+//		return getattr(g.ROMLoc)
+		// TODO merely returning getattr() always results in
+		// 2012/12/31 12:13:27 writer: Write/Writev failed, err: 22=invalid argument. opcode: LOOKUP
+		// but this works
+		a, err := getattr(g.CHDLoc[chdname])
 		return a, err
 	}
 	return nil, fuse.ENOENT		// any other file is invalid
@@ -112,7 +137,16 @@ func (fs *mamefuse) Open(name string, flags uint32, context *fuse.Context) (file
 		// TODO worry about closing the file?
 		return getloopbackfile_fuseerr(g.ROMLoc)
 	case ".chd":				// CHD
-		// ...
+		gamename, chdname := getchdparts(basename)
+		if gamename == "" {		// we need a game name to disambiguate
+			return nil, fuse.ENOENT
+		}
+		g, err := getgame_fuseerr(gamename)
+		if err != fuse.OK {
+			return nil, err
+		}
+		// TODO worry about closing the file?
+		return getloopbackfile_fuseerr(g.CHDLoc[chdname])
 	case "":					// folder
 		// ...
 	// TODO root directory?
