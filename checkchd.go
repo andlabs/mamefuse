@@ -6,9 +6,6 @@ import (
 	"os"
 	"io"
 	"path/filepath"
-	"archive/zip"
-	"strconv"
-	"crypto/sha1"
 	"encoding/hex"
 	"bytes"
 	"strings"
@@ -18,116 +15,101 @@ import (
 // TODO:
 // - select one constructor syntax for the maps?
 // - condense map[string]*ROM into a named type?
+// - not have sha1hash be global?
 
-var sha1hash = sha1.New()
-
-func crc32match(zipcrc uint32, gamecrc string) bool {
-	if gamecrc == "" {	// assume lack of CRC32 means do not check
-		return true
-	}
-	n, err := strconv.ParseUint(gamecrc, 16, 32)
-	if err != nil {
-		log.Fatalf("string convert error reading crc32 (%q): %v", gamecrc, err)
-	}
-	return uint32(n) == zipcrc
-}
-
-func sha1check(zf *zip.File, expectstring string) (bool, error) {
+func sha1check_chd(f *os.File, expectstring string) (bool, error) {
 	expected, err := hex.DecodeString(expectstring)
 	if err != nil {
 		log.Fatalf("hex decode error reading sha1 (%q): %v", expectstring, err)
 	}
-
-	f, err := zf.Open()
-	if err != nil {
-		return false, fmt.Errorf("could not open given zip file entry: %v", err)
-	}
-	defer f.Close()
 
 	sha1hash.Reset()
 	n, err := io.Copy(sha1hash, f)
 	if err != nil {
 		return false, fmt.Errorf("could not read given zip file entry: %v", err)
 	}
-	// TODO could we have integer size/signedness conversion failure here? zf.UncompressedSize is not an int64
-	if n != int64(zf.UncompressedSize) {
-		return false, fmt.Errorf("short read from zip file or write to hash but no error returned (expected %d bytes; got %d)", int64(zf.UncompressedSize), n)
-	}
+	// TODO figure out how to check filesize?
+	_ = n
 
 	return bytes.Equal(expected, sha1hash.Sum(nil)), nil
 }
 
-func (g *Game) filename_ROM(rompath string) string {
-	return filepath.Join(rompath, g.Name + ".zip")
+// TODO change filename_ROM to not be part of Game as well
+func filename_CHD(rompath string, gamename string, CHDname string) string {
+	return filepath.Join(rompath, gamename, CHDname + ".chd")
 }
 
-func (g *Game) checkIn(rompath string, roms map[string]*ROM) (bool, error) {
-	zipname := g.filename_ROM(rompath)
-	f, err := zip.OpenReader(zipname)
-	if os.IsNotExist(err) {		// if the file does not exist, try the next rompath
-		return false, nil
-	}
-	if err != nil {			// something different happened
-		return false, fmt.Errorf("could not open zip file %s: %v", zipname, err)
-	}
-	defer f.Close()
-
-	// true values will be written to this as we find valid ROMs
-	// if the length of this does not equal the length of roms when we're done; we missed something and therefore something else is wrong
-	var found = map[string]bool{}
-
-	for _, file := range f.File {
-		rom, ok := roms[file.Name]
-		if !ok {				// not in archive
-			return false, nil
+func (g *Game) checkCHDIn(rompath string, chd *ROM) (bool, string, error) {
+	try := func(dir string) (bool, string, error) {
+		fn := filename_CHD(rompath, dir, chd.Name)
+		file, err := os.Open(fn)
+		if os.IsNotExist(err) {
+			return false, "", nil
+		} else if err != nil {
+			return false, "", fmt.Errorf("could not open CHD file %s: %v", fn, err)
 		}
-		if file.UncompressedSize != rom.Size {
-			return false, nil
-		}
-		if !crc32match(file.CRC32, rom.CRC32) {
-			return false, nil
-		}
-		good, err := sha1check(file, rom.SHA1)
+		good, err := sha1check_chd(file, chd.SHA1)
+		file.Close()
 		if err != nil {
-			return false, fmt.Errorf("could not calculate SHA-1 sum of %s in %s: %v", g.Name, zipname, err)
+			return false, "", fmt.Errorf("could not calculate SHA-1 sum of CHD %s: %v", fn, err)
 		}
 		if !good {
-			return false, nil
+			return false, "", nil
 		}
-		found[file.Name] = true		// mark as done
+		return true, fn, nil
 	}
 
-	// if we reached here everything we know about checked out, so if there are any leftover files in the game, that means something is wrong
-	return len(roms) == len(found), nil
+	// first try the game
+	found, path, err := try(g.Name)
+	if err != nil {
+		return false, "", err
+	}
+	if found {
+		return true, path, nil
+	}
+
+	// then its parents
+	for _, p := range g.Parents {
+		found, path, err := try(p)
+		if err != nil {
+			return false, "", err
+		}
+		if found {
+			return true, path, nil
+		}
+	}
+
+	// nope
+	return false, "", nil
 }
 
-// remove all ROMs belonging to this set and its parents from the list
-func (g *Game) strikeROMs(roms map[string]*ROM) {
-	for _, rom := range g.ROMs {
-		delete(roms, rom.Name)
+// remove all CHDs belonging to this set and its parents from the list
+func (g *Game) strikeCHDs(chds map[string]*ROM) {
+	for _, rom := range g.CHDs {
+		delete(chds, rom.Name)
 	}
 	for _, parent := range g.Parents {
-		games[parent].strikeROMs(roms)
+		games[parent].strikeCHDs(chds)
 	}
 }
 
-func (g *Game) Find() (found bool, err error) {
+func (g *Game) findCHDs() (found bool, err error) {
 	// did we find this already?
 	if g.Found {
 		return true, nil
 	}
 
-	// populate list of ROMs
-	var roms = make(map[string]*ROM)
-	for i := range g.ROMs {
-		if g.ROMs[i].Status != nodump {	// otherwise games with known undumped ROMs will return "not found" because the map never depletes
+	// populate list of CHDs
+	var chds = make(map[string]*ROM)
+	for i := range g.CHDs {
+		if g.CHDs[i].Status != nodump {		// otherwise games with known undumped ROMs will return "not found" because the map never depletes
 			// some ROM sets (scregg, for instance) have trailing spaces in the filenames given in he XML file (dc0.c6, in this example)
 			// TODO this will also remove leading spaces; is that correct?
-			roms[strings.TrimSpace(g.ROMs[i].Name)] = &(g.ROMs[i])
+			chds[strings.TrimSpace(g.CHDs[i].Name)] = &(g.CHDs[i])
 		}
 	}
 
-	// find the parents and remove their ROMs rom the list
+	// find the parents and remove their CHDs rom the list
 	for _, parent := range g.Parents {
 		found, err := games[parent].Find()
 		if err != nil {
@@ -137,26 +119,33 @@ func (g *Game) Find() (found bool, err error) {
 		if !found {
 			return false, err
 		}
-		games[parent].strikeROMs(roms)
+		games[parent].strikeCHDs(chds)
 	}
 
-	if len(roms) == 0 {		// no ROMs left to check (either has no ROMs or is just a CHD after BIOSes)
-		// TODO this will be changed when we start looking for CHDs
+	if len(chds) == 0 {		// no CHDs left to check (either has no CHDs or we are done)
 		g.Found = true
 		return true, nil
 	}
 
 	// go through the directories, finding the right file
+	n := len(chds)
 	for _, d := range dirs {
-		found, err := g.checkIn(d, roms)
-		if err != nil {
-			return false, err
+		for name, chd := range chds {
+			found, path, err := g.checkCHDIn(d, chd)
+			if err != nil {
+				return false, err
+			}
+			if found {
+				g.CHDLoc[name] = path
+				n--
+				break
+			}
 		}
-		if found {
-			g.Found = true
-			g.ROMLoc = g.filename_ROM(d)
-			return true, nil
-		}
+	}
+
+	if n == 0 {		// all found!
+		g.Found = true
+		return true, nil
 	}
 
 	// nope

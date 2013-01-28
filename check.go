@@ -141,9 +141,7 @@ func (g *Game) Find() (found bool, err error) {
 	}
 
 	if len(roms) == 0 {		// no ROMs left to check (either has no ROMs or is just a CHD after BIOSes)
-		// TODO this will be changed when we start looking for CHDs
-		g.Found = true
-		return true, nil
+		return g.findCHDs()
 	}
 
 	// go through the directories, finding the right file
@@ -153,9 +151,8 @@ func (g *Game) Find() (found bool, err error) {
 			return false, err
 		}
 		if found {
-			g.Found = true
 			g.ROMLoc = g.filename_ROM(d)
-			return true, nil
+			return g.findCHDs()
 		}
 	}
 
