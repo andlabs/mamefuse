@@ -82,12 +82,11 @@ func getattr(filename string) (*fuse.Attr, fuse.Status) {
 	return fuse.ToAttr(stat), fuse.OK
 }
 
-func getchdparts(basename string) (gamename string, chdname string) {
-fmt.Print(basename, " ")
-	basename = basename[:len(basename) - 4]
-	gamename, chdname = filepath.Split(basename)	// split out CHD filename
-	_, gamename = filepath.Split(gamename)			// and game name
-fmt.Println(gamename, " ", chdname)
+func getchdparts(name string) (gamename string, chdname string) {
+fmt.Print(name, " ")
+	gamename, chdname = filepath.Split(name)	// split out CHD filename
+	_, gamename = filepath.Split(gamename)		// and game name
+	chdname = chdname[:len(chdname) - 4]		// strip extension
 	return
 }
 
@@ -107,7 +106,7 @@ func (fs *mamefuse) GetAttr(name string, context *fuse.Context) (*fuse.Attr, fus
 		a, err := getattr(g.ROMLoc)
 		return a, err
 	case ".chd":
-		gamename, chdname := getchdparts(basename)
+		gamename, chdname := getchdparts(name)
 		if gamename == "" {		// we need a game name to disambiguate
 			return nil, fuse.ENOENT
 		}
@@ -137,7 +136,7 @@ func (fs *mamefuse) Open(name string, flags uint32, context *fuse.Context) (file
 		// TODO worry about closing the file?
 		return getloopbackfile_fuseerr(g.ROMLoc)
 	case ".chd":				// CHD
-		gamename, chdname := getchdparts(basename)
+		gamename, chdname := getchdparts(name)
 		if gamename == "" {		// we need a game name to disambiguate
 			return nil, fuse.ENOENT
 		}
