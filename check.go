@@ -18,6 +18,7 @@ import (
 // TODO:
 // - select one constructor syntax for the maps?
 // - condense map[string]*ROM into a named type?
+// - not make sha1hash global?
 
 var sha1hash = sha1.New()
 
