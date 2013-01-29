@@ -5,8 +5,8 @@ import (
 	"os"
 	"github.com/hanwen/go-fuse/fuse"
 	"path/filepath"
+	"strings"
 	"errors"
-"fmt"
 )
 
 var errNoSuchGame = errors.New("no such game")
@@ -82,11 +82,18 @@ func getattr(filename string) (*fuse.Attr, fuse.Status) {
 	return fuse.ToAttr(stat), fuse.OK
 }
 
+// to avoid recreating the string each time getchdparts() is called
+var sepstr = string(filepath.Separator)
+
 func getchdparts(name string) (gamename string, chdname string) {
-fmt.Print(name, " ")
-	gamename, chdname = filepath.Split(name)	// split out CHD filename
-	_, gamename = filepath.Split(gamename)		// and game name
-	chdname = chdname[:len(chdname) - 4]		// strip extension
+	// I know MAME won't hand me pathnames that aren't well-formed but Clean() should make them safe to split like this in general...
+	parts := strings.Split(filepath.Clean(name), sepstr)
+	if len(parts) < 2 {	// invalid
+		return "", ""
+	}
+	gamename = parts[len(parts) - 2]
+	chdname = parts[len(parts) - 1]
+	chdname = chdname[:len(chdname) - 4]		// strip .chd
 	return
 }
 
