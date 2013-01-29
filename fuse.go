@@ -120,6 +120,14 @@ func (fs *mamefuse) GetAttr(name string, context *fuse.Context) (*fuse.Attr, fus
 		// but this works
 		a, err := getattr(g.CHDLoc[chdname])
 		return a, err
+	default:
+		// is it a folder that stores CHDs?
+		if _, ok := games[basename]; ok {		// yes
+			return &fuse.Attr{
+				Mode:	fuse.S_IFDIR | 0755,
+			}, fuse.OK
+		}
+		// no; fall out
 	}
 	return nil, fuse.ENOENT		// any other file is invalid
 }
