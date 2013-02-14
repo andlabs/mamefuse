@@ -28,6 +28,8 @@ type Game struct {
 	ROMs	[]ROM	`xml:"rom"`
 	CHDs	[]ROM	`xml:"disk"`
 
+	// TODO tell encoding/xml to skip these fields, just in case
+
 	// prepared by getGames()
 	Parents	[]string	// [CloneOf, ROMOf] but only if either is specified and no repeats; avoids code duplication in check.go
 
