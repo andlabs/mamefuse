@@ -22,14 +22,6 @@ func getgame(gamename string) (*Game, error) {
 	if !ok {				// not a valid game
 		return nil, errNoSuchGame
 	}
-//	ret := make(chan string)
-//	zipRequests <- zipRequest{
-//		Game:	gamename,
-//		Return:	ret,
-//	}
-//	zipname := <-ret
-//	close(ret)
-//	if zipname == "" {		// none given
 	good, err := g.Find()
 	if err != nil {
 		return nil, err
