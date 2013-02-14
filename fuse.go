@@ -75,7 +75,7 @@ func getattr(filename string) (*fuse.Attr, fuse.Status) {
 }
 
 // to avoid recreating the string each time getchdparts() is called
-var sepstr = string(filepath.Separator)
+const sepstr = string(filepath.Separator)
 
 func getchdparts(name string) (gamename string, chdname string) {
 	// I know MAME won't hand me pathnames that aren't well-formed but Clean() should make them safe to split like this in general...
