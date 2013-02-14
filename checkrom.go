@@ -110,12 +110,7 @@ func (g *Game) strikeROMs(roms map[string]*ROM) {
 	}
 }
 
-func (g *Game) Find() (found bool, err error) {
-	// did we find this already?
-	if g.Found {
-		return true, nil
-	}
-
+func (g *Game) findROMs() (found bool, err error) {
 	// populate list of ROMs
 	var roms = make(map[string]*ROM)
 	for i := range g.ROMs {
@@ -140,7 +135,7 @@ func (g *Game) Find() (found bool, err error) {
 	}
 
 	if len(roms) == 0 {		// no ROMs left to check (either has no ROMs or is just a CHD after BIOSes)
-		return g.findCHDs()
+		return true, nil
 	}
 
 	// go through the directories, finding the right file
@@ -151,7 +146,7 @@ func (g *Game) Find() (found bool, err error) {
 		}
 		if found {
 			g.ROMLoc = g.filename_ROM(d)
-			return g.findCHDs()
+			return true, nil
 		}
 	}
 

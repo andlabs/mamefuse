@@ -120,11 +120,6 @@ func (g *Game) strikeCHDs(chds map[string]*ROM) {
 }
 
 func (g *Game) findCHDs() (found bool, err error) {
-	// did we find this already?
-	if g.Found {
-		return true, nil
-	}
-
 	g.CHDLoc = map[string]string{}
 
 	// populate list of CHDs
@@ -151,7 +146,6 @@ func (g *Game) findCHDs() (found bool, err error) {
 	}
 
 	if len(chds) == 0 {		// no CHDs left to check (either has no CHDs or we are done)
-		g.Found = true
 		return true, nil
 	}
 
@@ -172,7 +166,6 @@ func (g *Game) findCHDs() (found bool, err error) {
 	}
 
 	if n == 0 {		// all found!
-		g.Found = true
 		return true, nil
 	}
 

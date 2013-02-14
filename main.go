@@ -11,6 +11,24 @@ import (
 // general TODO:
 // - be able to ls the ROMs directory
 
+func (g *Game) Find() (found bool, err error) {
+fmt.Println("Find()")
+	// did we find this already?
+	if g.Found {
+		return true, nil
+	}
+	found, err = g.findROMs()
+	if !found || err != nil {
+		return
+	}
+	found, err = g.findCHDs()
+	if !found || err != nil {
+		return
+	}
+	g.Found = true
+	return
+}
+
 func main() {
 	if len(os.Args) != 4 {
 		fmt.Fprintf(os.Stderr, "usage: %s mamexml dirlistfile mountpoint\n", os.Args[0])
