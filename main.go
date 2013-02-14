@@ -12,7 +12,6 @@ import (
 // - be able to ls the ROMs directory
 
 func (g *Game) Find() (found bool, err error) {
-fmt.Println("Find()")
 	// did we find this already?
 	if g.Found {
 		return true, nil
