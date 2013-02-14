@@ -18,9 +18,6 @@ import (
 // TODO:
 // - select one constructor syntax for the maps?
 // - condense map[string]*ROM into a named type?
-// - not make sha1hash global?
-
-var sha1hash = sha1.New()
 
 func crc32match(zipcrc uint32, gamecrc string) bool {
 	if gamecrc == "" {	// assume lack of CRC32 means do not check
@@ -45,7 +42,8 @@ func sha1check(zf *zip.File, expectstring string) (bool, error) {
 	}
 	defer f.Close()
 
-	sha1hash.Reset()
+	var sha1hash = sha1.New()
+
 	n, err := io.Copy(sha1hash, f)
 	if err != nil {
 		return false, fmt.Errorf("could not read given zip file entry: %v", err)

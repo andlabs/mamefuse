@@ -16,7 +16,6 @@ import (
 // TODO:
 // - select one constructor syntax for the maps?
 // - condense map[string]*ROM into a named type?
-// - not have sha1hash be global?
 // - not have to juggle .chd extensions everywhere
 
 var sha1Off = map[uint32]int64{
