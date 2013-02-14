@@ -8,6 +8,9 @@ import (
 	"log"
 )
 
+// general TODO:
+// - be able to ls the ROMs directory
+
 func main() {
 	if len(os.Args) != 4 {
 		fmt.Fprintf(os.Stderr, "usage: %s mamexml dirlistfile mountpoint\n", os.Args[0])
