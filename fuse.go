@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"errors"
+	"log"
 )
 
 var errNoSuchGame = errors.New("no such game")
@@ -17,59 +18,40 @@ type mamefuse struct {
 	fuse.DefaultFileSystem
 }
 
-func getgame(gamename string) (*Game, error) {
+func getgame(gamename string) (*Game, fuse.Status) {
 	g, ok := games[gamename]
 	if !ok {				// not a valid game
-		return nil, errNoSuchGame
+		log.Printf("no such game %s\n", gamename)		// TODO wrap around a debug flag?
+		return nil, fuse.EINVAL
 	}
 	good, err := g.Find()
 	if err != nil {
-		return nil, err
-	}
-	if !good {
-		return nil, errGameNotFound
-	}
-	return g, nil
-}
-
-func getgame_fuseerr(gamename string) (*Game, fuse.Status) {
-	g, err := getgame(gamename)
-	if err == errNoSuchGame {
-		return nil, fuse.EINVAL
-	} else if err == errGameNotFound {
-		return nil, fuse.ENOENT
-	} else if err != nil {
-		// TODO report error
+		log.Printf("error finding game %s: %v\n", gamename, err)
 		return nil, fuse.EIO
+	} else if !good {
+		log.Printf("game %s not found\n", gamename)		// TODO wrap around a debug flag?
+		return nil, fuse.ENOENT
 	}
 	return g, fuse.OK
 }
 
-func getloopbackfile(filename string) (*fuse.LoopbackFile, error) {
+func getloopbackfile(filename string) (*fuse.LoopbackFile, fuse.Status) {
 	f, err := os.Open(filename)
 	if err != nil {
-		return nil, err
+		log.Printf("error opening file %s: %v\n", filename, err)
+		return nil, fuse.EIO		// TODO too drastic?
 	}
 	// according to the go-fuse source (fuse/file.go), fuse.LoopbackFile will take ownership of our *os.FIle, calling Close() on it itself
 	return &fuse.LoopbackFile{
 		File:	f,
-	}, nil
-}
-
-func getloopbackfile_fuseerr(filename string) (*fuse.LoopbackFile, fuse.Status) {
-	loopfile, err := getloopbackfile(filename)
-	if err != nil {
-		// TODO report error
-		return nil, fuse.EIO
-	}
-	return loopfile, fuse.OK
+	}, fuse.OK
 }
 
 func getattr(filename string) (*fuse.Attr, fuse.Status) {
 	stat, err := os.Stat(filename)
 	if err != nil {
-		// TODO report error
-		return nil, fuse.EIO
+		log.Printf("error geting stats of file %s: %v\n", filename, err)
+		return nil, fuse.EIO		// TODO too drastic?
 	}
 	return fuse.ToAttr(stat), fuse.OK
 }
@@ -94,7 +76,7 @@ func (fs *mamefuse) GetAttr(name string, context *fuse.Context) (*fuse.Attr, fus
 	switch filepath.Ext(basename) {
 	case ".zip":				// ROM set
 		gamename := basename[:len(basename) - 4]
-		g, err := getgame_fuseerr(gamename)
+		g, err := getgame(gamename)
 		if err != fuse.OK {
 			return nil, err
 		}
@@ -109,7 +91,7 @@ func (fs *mamefuse) GetAttr(name string, context *fuse.Context) (*fuse.Attr, fus
 		if gamename == "" {		// we need a game name to disambiguate
 			return nil, fuse.ENOENT
 		}
-		g, err := getgame_fuseerr(gamename)
+		g, err := getgame(gamename)
 		if err != fuse.OK {
 			return nil, err
 		}
@@ -136,23 +118,23 @@ func (fs *mamefuse) Open(name string, flags uint32, context *fuse.Context) (file
 	switch filepath.Ext(basename) {
 	case ".zip":				// ROM set
 		gamename := basename[:len(basename) - 4]
-		g, err := getgame_fuseerr(gamename)
+		g, err := getgame(gamename)
 		if err != fuse.OK {
 			return nil, err
 		}
 		// TODO worry about closing the file?
-		return getloopbackfile_fuseerr(g.ROMLoc)
+		return getloopbackfile(g.ROMLoc)
 	case ".chd":				// CHD
 		gamename, chdname := getchdparts(name)
 		if gamename == "" {		// we need a game name to disambiguate
 			return nil, fuse.ENOENT
 		}
-		g, err := getgame_fuseerr(gamename)
+		g, err := getgame(gamename)
 		if err != fuse.OK {
 			return nil, err
 		}
 		// TODO worry about closing the file?
-		return getloopbackfile_fuseerr(g.CHDLoc[chdname])
+		return getloopbackfile(g.CHDLoc[chdname])
 	case "":					// folder
 		// ...
 	// TODO root directory?
