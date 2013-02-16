@@ -15,8 +15,9 @@ import (
 
 // TODO:
 // - select one constructor syntax for the maps?
-// - condense map[string]*CHD into a named type?
 // - not have to juggle .chd extensions everywhere
+
+type CHDs map[string]*CHD
 
 var sha1Off = map[uint32]int64{
 	// right now using standard; comment has parent (raw if also available)
@@ -110,7 +111,7 @@ func (g *Game) checkCHDIn(rompath string, chd *CHD) (bool, string, error) {
 }
 
 // remove all CHDs belonging to this set and its parents from the list
-func (g *Game) strikeCHDs(chds map[string]*CHD) {
+func (g *Game) strikeCHDs(chds CHDs) {
 	for _, rom := range g.CHDs {
 		delete(chds, rom.Name)
 	}
@@ -123,7 +124,7 @@ func (g *Game) findCHDs() (found bool, err error) {
 	g.CHDLoc = map[string]string{}
 
 	// populate list of CHDs
-	var chds = make(map[string]*CHD)
+	var chds = make(CHDs)
 	for i := range g.CHDs {
 		if g.CHDs[i].Status != nodump {		// otherwise games with known undumped CHDs will return "not found" because the map never depletes
 			// some ROM sets (scregg, for instance) have trailing spaces in the filenames given in he XML file (dc0.c6, in this example)

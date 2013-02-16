@@ -17,7 +17,8 @@ import (
 
 // TODO:
 // - select one constructor syntax for the maps?
-// - condense map[string]*ROM into a named type?
+
+type ROMs map[string]*ROM
 
 func crc32match(zipcrc uint32, gamecrc string) bool {
 	if gamecrc == "" {	// assume lack of CRC32 means do not check
@@ -60,7 +61,7 @@ func (g *Game) filename_ROM(rompath string) string {
 	return filepath.Join(rompath, g.Name + ".zip")
 }
 
-func (g *Game) checkIn(rompath string, roms map[string]*ROM) (bool, error) {
+func (g *Game) checkIn(rompath string, roms ROMs) (bool, error) {
 	zipname := g.filename_ROM(rompath)
 	f, err := zip.OpenReader(zipname)
 	if os.IsNotExist(err) {		// if the file does not exist, try the next rompath
@@ -101,7 +102,7 @@ func (g *Game) checkIn(rompath string, roms map[string]*ROM) (bool, error) {
 }
 
 // remove all ROMs belonging to this set and its parents from the list
-func (g *Game) strikeROMs(roms map[string]*ROM) {
+func (g *Game) strikeROMs(roms ROMs) {
 	for _, rom := range g.ROMs {
 		delete(roms, rom.Name)
 	}
@@ -112,7 +113,7 @@ func (g *Game) strikeROMs(roms map[string]*ROM) {
 
 func (g *Game) findROMs() (found bool, err error) {
 	// populate list of ROMs
-	var roms = make(map[string]*ROM)
+	var roms = make(ROMs)
 	for i := range g.ROMs {
 		if g.ROMs[i].Status != nodump {	// otherwise games with known undumped ROMs will return "not found" because the map never depletes
 			// some ROM sets (scregg, for instance) have trailing spaces in the filenames given in he XML file (dc0.c6, in this example)
