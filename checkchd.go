@@ -60,7 +60,6 @@ func sha1check_chd(f *os.File, expectstring string) (bool, error) {
 	return bytes.Equal(expected, sha1[:]), nil
 }
 
-// TODO change filename_CHD to not be part of Game as well
 func filename_CHD(rompath string, gamename string, CHDname string) string {
 	return filepath.Join(rompath, gamename, CHDname + ".chd")
 }
