@@ -139,9 +139,8 @@ func (g *Game) findCHDs() (found bool, err error) {
 		if err != nil {
 			return false, fmt.Errorf("error finding parent %s: %v", parent, err)
 		}
-		// TODO really bail out?
 		if !found {
-			return false, err
+			return false, nil		// TODO return parent not found as an error?
 		}
 		games[parent].strikeCHDs(chds)
 	}
