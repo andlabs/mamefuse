@@ -53,7 +53,7 @@ func getattr(filename string) (*fuse.Attr, fuse.Status) {
 		log.Printf("error geting stats of file %s: %v\n", filename, err)
 		return nil, fuse.EIO		// TODO too drastic?
 	}
-	return fuse.ToAttr(stat), fuse.OK
+	return fuse.ToAttr(stat), fuse.OK	// TODO mask out write bits?
 }
 
 // to avoid recreating the string each time getchdparts() is called
@@ -95,7 +95,7 @@ func (fs *mamefuse) GetAttr(name string, context *fuse.Context) (*fuse.Attr, fus
 		// is it a folder that stores CHDs?
 		if _, ok := games[basename]; ok {		// yes
 			return &fuse.Attr{
-				Mode:	fuse.S_IFDIR | 0755,
+				Mode:	fuse.S_IFDIR | 0755,		// TODO mask out write bits?
 			}, fuse.OK
 		}
 		// no; fall out
