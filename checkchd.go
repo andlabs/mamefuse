@@ -15,7 +15,7 @@ import (
 
 // TODO:
 // - select one constructor syntax for the maps?
-// - condense map[string]*ROM into a named type?
+// - condense map[string]*CHD into a named type?
 // - not have to juggle .chd extensions everywhere
 
 var sha1Off = map[uint32]int64{
@@ -60,12 +60,12 @@ func sha1check_chd(f *os.File, expectstring string) (bool, error) {
 	return bytes.Equal(expected, sha1[:]), nil
 }
 
-// TODO change filename_ROM to not be part of Game as well
+// TODO change filename_CHD to not be part of Game as well
 func filename_CHD(rompath string, gamename string, CHDname string) string {
 	return filepath.Join(rompath, gamename, CHDname + ".chd")
 }
 
-func (g *Game) checkCHDIn(rompath string, chd *ROM) (bool, string, error) {
+func (g *Game) checkCHDIn(rompath string, chd *CHD) (bool, string, error) {
 	try := func(dir string) (bool, string, error) {
 		fn := filename_CHD(rompath, dir, chd.Name)
 		file, err := os.Open(fn)
@@ -110,7 +110,7 @@ func (g *Game) checkCHDIn(rompath string, chd *ROM) (bool, string, error) {
 }
 
 // remove all CHDs belonging to this set and its parents from the list
-func (g *Game) strikeCHDs(chds map[string]*ROM) {
+func (g *Game) strikeCHDs(chds map[string]*CHD) {
 	for _, rom := range g.CHDs {
 		delete(chds, rom.Name)
 	}
@@ -123,9 +123,9 @@ func (g *Game) findCHDs() (found bool, err error) {
 	g.CHDLoc = map[string]string{}
 
 	// populate list of CHDs
-	var chds = make(map[string]*ROM)
+	var chds = make(map[string]*CHD)
 	for i := range g.CHDs {
-		if g.CHDs[i].Status != nodump {		// otherwise games with known undumped ROMs will return "not found" because the map never depletes
+		if g.CHDs[i].Status != nodump {		// otherwise games with known undumped CHDs will return "not found" because the map never depletes
 			// some ROM sets (scregg, for instance) have trailing spaces in the filenames given in he XML file (dc0.c6, in this example)
 			// TODO this will also remove leading spaces; is that correct?
 			chds[strings.TrimSpace(g.CHDs[i].Name)] = &(g.CHDs[i])
