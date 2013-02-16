@@ -135,9 +135,6 @@ func (fs *mamefuse) Open(name string, flags uint32, context *fuse.Context) (file
 		}
 		// TODO worry about closing the file?
 		return getloopbackfile(g.CHDLoc[chdname])
-	case "":					// folder
-		// ...
-	// TODO root directory?
 	}
 	return nil, fuse.ENOENT		// otherwise 404
 }
