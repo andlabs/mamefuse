@@ -80,12 +80,7 @@ func (fs *mamefuse) GetAttr(name string, context *fuse.Context) (*fuse.Attr, fus
 		if err != fuse.OK {
 			return nil, err
 		}
-//		return getattr(g.ROMLoc)
-		// TODO merely returning getattr() always results in
-		// 2012/12/31 12:13:27 writer: Write/Writev failed, err: 22=invalid argument. opcode: LOOKUP
-		// but this works
-		a, err := getattr(g.ROMLoc)
-		return a, err
+		return getattr(g.ROMLoc)
 	case ".chd":
 		gamename, chdname := getchdparts(name)
 		if gamename == "" {		// we need a game name to disambiguate
@@ -95,12 +90,7 @@ func (fs *mamefuse) GetAttr(name string, context *fuse.Context) (*fuse.Attr, fus
 		if err != fuse.OK {
 			return nil, err
 		}
-//		return getattr(g.ROMLoc)
-		// TODO merely returning getattr() always results in
-		// 2012/12/31 12:13:27 writer: Write/Writev failed, err: 22=invalid argument. opcode: LOOKUP
-		// but this works
-		a, err := getattr(g.CHDLoc[chdname])
-		return a, err
+		return getattr(g.CHDLoc[chdname])
 	default:
 		// is it a folder that stores CHDs?
 		if _, ok := games[basename]; ok {		// yes
