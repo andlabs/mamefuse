@@ -39,7 +39,7 @@ func getloopbackfile(filename string) (*fuse.LoopbackFile, fuse.Status) {
 	f, err := os.Open(filename)
 	if err != nil {
 		log.Printf("error opening file %s: %v\n", filename, err)
-		return nil, fuse.EIO		// TODO too drastic?
+		return nil, fuse.EIO
 	}
 	// according to the go-fuse source (fuse/file.go), fuse.LoopbackFile will take ownership of our *os.FIle, calling Close() on it itself
 	return &fuse.LoopbackFile{
@@ -51,7 +51,7 @@ func getattr(filename string) (*fuse.Attr, fuse.Status) {
 	stat, err := os.Stat(filename)
 	if err != nil {
 		log.Printf("error geting stats of file %s: %v\n", filename, err)
-		return nil, fuse.EIO		// TODO too drastic?
+		return nil, fuse.EIO
 	}
 	return fuse.ToAttr(stat), fuse.OK	// TODO mask out write bits?
 }
