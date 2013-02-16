@@ -33,15 +33,13 @@ type Game struct {
 	ROMs	[]ROM	`xml:"rom"`
 	CHDs	[]CHD	`xml:"disk"`
 
-	// TODO tell encoding/xml to skip these fields, just in case
-
 	// prepared by getGames()
-	Parents	[]string	// [CloneOf, ROMOf] but only if either is specified and no repeats; avoids code duplication in check.go
+	Parents	[]string			`xml:"-"`		// [CloneOf, ROMOf] but only if either is specified and no repeats; avoids code duplication in check.go
 
 	// prepared by Game.Find()
-	Found	bool
-	ROMLoc	string
-	CHDLoc	map[string]string
+	Found	bool				`xml:"-"`
+	ROMLoc	string			`xml:"-"`
+	CHDLoc	map[string]string	`xml:"-"`
 }
 
 var games = map[string]*Game{}
