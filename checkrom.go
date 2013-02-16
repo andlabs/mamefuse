@@ -49,7 +49,6 @@ func sha1check(zf *zip.File, expectstring string) (bool, error) {
 	if err != nil {
 		return false, fmt.Errorf("could not read given zip file entry: %v", err)
 	}
-	// TODO could we have integer size/signedness conversion failure here? zf.UncompressedSize is not an int64
 	if n != int64(zf.UncompressedSize) {
 		return false, fmt.Errorf("short read from zip file or write to hash but no error returned (expected %d bytes; got %d)", int64(zf.UncompressedSize), n)
 	}
