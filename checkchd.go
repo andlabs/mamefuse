@@ -15,7 +15,6 @@ import (
 
 // TODO:
 // - select one constructor syntax for the maps?
-// - not have to juggle .chd extensions everywhere
 
 type CHDs map[string]*CHD
 

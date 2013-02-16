@@ -67,7 +67,7 @@ func getchdparts(name string) (gamename string, chdname string) {
 	}
 	gamename = parts[len(parts) - 2]
 	chdname = parts[len(parts) - 1]
-	chdname = chdname[:len(chdname) - 4]		// strip .chd
+	chdname = chdname[:len(chdname) - 4]		// strip .chd so we can find it in the Game structure (the MAME XML file doesn't have the extension)
 	return
 }
 
