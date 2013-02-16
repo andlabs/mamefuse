@@ -47,13 +47,17 @@ func getloopbackfile(filename string) (*fuse.LoopbackFile, fuse.Status) {
 	}, fuse.OK
 }
 
+const writeBits = 0222		// thanks kevlar (#go_nuts)
+
 func getattr(filename string) (*fuse.Attr, fuse.Status) {
 	stat, err := os.Stat(filename)
 	if err != nil {
 		log.Printf("error geting stats of file %s: %v\n", filename, err)
 		return nil, fuse.EIO
 	}
-	return fuse.ToAttr(stat), fuse.OK	// TODO mask out write bits?
+	attr := fuse.ToAttr(stat)
+	attr.Mode &^= writeBits		// make sure read only
+	return attr, fuse.OK
 }
 
 // to avoid recreating the string each time getchdparts() is called
@@ -95,7 +99,7 @@ func (fs *mamefuse) GetAttr(name string, context *fuse.Context) (*fuse.Attr, fus
 		// is it a folder that stores CHDs?
 		if _, ok := games[basename]; ok {		// yes
 			return &fuse.Attr{
-				Mode:	fuse.S_IFDIR | 0755,		// TODO mask out write bits?
+				Mode:	fuse.S_IFDIR | 0555,
 			}, fuse.OK
 		}
 		// no; fall out
