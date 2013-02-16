@@ -17,11 +17,17 @@ func (g *Game) Find() (found bool, err error) {
 		return true, nil
 	}
 	found, err = g.findROMs()
-	if !found || err != nil {
+	if err != nil {
+		log.Printf("error finding ROMs for game %s: %v\n", g.Name, err)
+		return
+	} else if !found {
 		return
 	}
 	found, err = g.findCHDs()
-	if !found || err != nil {
+	if err != nil {
+		log.Printf("error finding CHDs for game %s: %v\n", g.Name, err)
+		return
+	} else if !found {
 		return
 	}
 	g.Found = true

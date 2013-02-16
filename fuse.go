@@ -21,7 +21,7 @@ type mamefuse struct {
 func getgame(gamename string) (*Game, fuse.Status) {
 	g, ok := games[gamename]
 	if !ok {				// not a valid game
-		log.Printf("no such game %s\n", gamename)		// TODO wrap around a debug flag?
+		log.Printf("no such game %s\n", gamename)
 		return nil, fuse.EINVAL
 	}
 	good, err := g.Find()
@@ -29,7 +29,7 @@ func getgame(gamename string) (*Game, fuse.Status) {
 		log.Printf("error finding game %s: %v\n", gamename, err)
 		return nil, fuse.EIO
 	} else if !good {
-		log.Printf("game %s not found\n", gamename)		// TODO wrap around a debug flag?
+		log.Printf("game %s not found\n", gamename)
 		return nil, fuse.ENOENT
 	}
 	return g, fuse.OK
