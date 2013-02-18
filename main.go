@@ -8,10 +8,6 @@ import (
 	"log"
 )
 
-// general TODO:
-// - be able to ls the ROMs directory
-// - switch to rsc's fuse, as Tv` in #go-nuts suggested? from what I can tell this requires a fair bit of work passing up *os.Files
-
 func (g *Game) Find() (found bool, err error) {
 	// did we find this already?
 	if g.Found {

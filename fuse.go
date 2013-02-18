@@ -9,7 +9,7 @@ import (
 
 // TODO:
 // - is fuse.Tree read-only?
-// - is ls trying to open all the files? because an ls on the mounted directory takes forever
+// - figure out why it takes 15 seconds to ls the ROMs folder (56 seconds for ls -l)
 
 func (g *Game) AddToTree(t *fuse.Tree) {
 	t.Add(g.Name + ".zip", NewROMFile(g))
