@@ -3,137 +3,125 @@ package main
 
 import (
 	"os"
-	"github.com/hanwen/go-fuse/fuse"
+	"code.google.com/p/rsc/fuse"
 	"path/filepath"
-	"strings"
-	"errors"
-	"log"
 )
 
-var errNoSuchGame = errors.New("no such game")
-var errGameNotFound = errors.New("game not found")
+// TODO:
+// - is fuse.Tree read-only?
+// - is ls trying to open all the files? because an ls on the mounted directory takes forever
 
-// note to self: this needs to be an embed in a struct as DefaultFileSystem will implement the  methods I don't override here and have them return fuse.ENOSYS
-type mamefuse struct {
-	fuse.DefaultFileSystem
+func (g *Game) AddToTree(t *fuse.Tree) {
+	t.Add(g.Name + ".zip", NewROMFile(g))
+	for _, c := range g.CHDs {
+		t.Add(filepath.Join(g.Name, c.Name + ".chd"), NewCHDFile(g, c.Name))
+	}
 }
 
-func getgame(gamename string) (*Game, fuse.Status) {
-	g, ok := games[gamename]
-	if !ok {				// not a valid game
-		log.Printf("no such game %s\n", gamename)
-		return nil, fuse.EINVAL
+// generic file node and handle; embedded by ROMNode and CHDNode to get the job done
+type FUSEFile struct {
+	size		uint64
+	f		*os.File
+}
+
+func (f *FUSEFile) Attr() fuse.Attr {
+	return fuse.Attr{
+		Mode:	0444,
+		Size:		f.size,
 	}
-	good, err := g.Find()
+}
+
+func (f *FUSEFile) open(filename string) fuse.Error {
+	var err error
+
+	f.f, err = os.Open(filename)
 	if err != nil {
-		log.Printf("error finding game %s: %v\n", gamename, err)
-		return nil, fuse.EIO
-	} else if !good {
-		log.Printf("game %s not found\n", gamename)
+		return fuse.EIO
+	}
+	if f.size == 0 {			// try to get size
+		s, err := f.f.Stat()
+		if err != nil {		// if we failed, we have an issue
+			f.f.Close()		// TODO let it slide?
+			return fuse.EIO
+		}
+		f.size = uint64(s.Size())		// int64 -> uint64 should be safe
+	}
+	return nil
+}
+
+func (f *FUSEFile) Read(req *fuse.ReadRequest, resp *fuse.ReadResponse, intr fuse.Intr) fuse.Error {
+	// TODO check to see if opened?
+	resp.Data = make([]byte, req.Size)
+	_, err := f.f.ReadAt(resp.Data, req.Offset)
+	if err != nil {
+		return fuse.EIO
+	}
+	return nil
+}
+
+func (f *FUSEFile) Release(*fuse.ReleaseRequest, fuse.Intr) fuse.Error {
+	// TODO check to see if opened?
+	f.f.Close()
+	return nil
+}
+
+type ROMFile struct {
+	g		*Game
+	*FUSEFile
+}
+
+// because the *FUSEFile embed won't allocate itself
+func NewROMFile(g *Game) *ROMFile {
+	return &ROMFile{
+		g:		g,
+		FUSEFile:	new(FUSEFile),
+	}
+}
+
+// TODO DRY?
+func (r *ROMFile) Open(req *fuse.OpenRequest, resp *fuse.OpenResponse, intr fuse.Intr) (h fuse.Handle, ferr fuse.Error) {
+	// TODO uint32 conversion here safe? should I just use the syscall ones instead? FUSE documentation says the values should match...
+	if (req.Flags & uint32(os.O_WRONLY | os.O_RDWR)) != 0 {		// ban writes
+		return nil, fuse.EPERM
+	}
+	found, err := r.g.Find()
+	if !found || err != nil {		// TODO report error somehow
 		return nil, fuse.ENOENT
 	}
-	return g, fuse.OK
-}
-
-func getloopbackfile(filename string) (*fuse.LoopbackFile, fuse.Status) {
-	f, err := os.Open(filename)
-	if err != nil {
-		log.Printf("error opening file %s: %v\n", filename, err)
-		return nil, fuse.EIO
+	ferr = r.open(r.g.ROMLoc)
+	if ferr != nil {
+		return nil, ferr
 	}
-	// according to the go-fuse source (fuse/file.go), fuse.LoopbackFile will take ownership of our *os.FIle, calling Close() on it itself
-	return &fuse.LoopbackFile{
-		File:	f,
-	}, fuse.OK
+	return r, nil
 }
 
-const writeBits = 0222		// thanks kevlar (#go_nuts)
+type CHDFile struct {
+	g		*Game
+	name	string
+	*FUSEFile
+}
 
-func getattr(filename string) (*fuse.Attr, fuse.Status) {
-	stat, err := os.Stat(filename)
-	if err != nil {
-		log.Printf("error geting stats of file %s: %v\n", filename, err)
-		return nil, fuse.EIO
+// because the *FUSEFile embed won't allocate itself
+func NewCHDFile(g *Game, name string) *CHDFile {
+	return &CHDFile{
+		g:		g,
+		name:	name,
+		FUSEFile:	new(FUSEFile),
 	}
-	attr := fuse.ToAttr(stat)
-	attr.Mode &^= writeBits		// make sure read only
-	return attr, fuse.OK
 }
 
-// to avoid recreating the string each time getchdparts() is called
-const sepstr = string(filepath.Separator)
-
-func getchdparts(name string) (gamename string, chdname string) {
-	// I know MAME won't hand me pathnames that aren't well-formed but Clean() should make them safe to split like this in general...
-	parts := strings.Split(filepath.Clean(name), sepstr)
-	if len(parts) < 2 {	// invalid
-		return "", ""
+// TODO DRY?
+func (r *CHDFile) Open(req *fuse.OpenRequest, resp *fuse.OpenResponse, intr fuse.Intr) (h fuse.Handle, ferr fuse.Error) {
+	if (req.Flags & uint32(os.O_WRONLY | os.O_RDWR)) != 0 {		// ban writes
+		return nil, fuse.EPERM
 	}
-	gamename = parts[len(parts) - 2]
-	chdname = parts[len(parts) - 1]
-	chdname = chdname[:len(chdname) - 4]		// strip .chd so we can find it in the Game structure (the MAME XML file doesn't have the extension)
-	return
-}
-
-func (fs *mamefuse) GetAttr(name string, context *fuse.Context) (*fuse.Attr, fuse.Status) {
-	basename := filepath.Base(name)
-	switch filepath.Ext(basename) {
-	case ".zip":				// ROM set
-		gamename := basename[:len(basename) - 4]
-		g, err := getgame(gamename)
-		if err != fuse.OK {
-			return nil, err
-		}
-		return getattr(g.ROMLoc)
-	case ".chd":
-		gamename, chdname := getchdparts(name)
-		if gamename == "" {		// we need a game name to disambiguate
-			return nil, fuse.ENOENT
-		}
-		g, err := getgame(gamename)
-		if err != fuse.OK {
-			return nil, err
-		}
-		return getattr(g.CHDLoc[chdname])
-	default:
-		// is it a folder that stores CHDs?
-		if _, ok := games[basename]; ok {		// yes
-			return &fuse.Attr{
-				Mode:	fuse.S_IFDIR | 0555,
-			}, fuse.OK
-		}
-		// no; fall out
+	found, err := r.g.Find()
+	if !found || err != nil {
+		return nil, fuse.ENOENT
 	}
-	return nil, fuse.ENOENT		// any other file is invalid
-}
-
-func (fs *mamefuse) Open(name string, flags uint32, context *fuse.Context) (file fuse.File, code fuse.Status) {
-	basename := filepath.Base(name)
-	switch filepath.Ext(basename) {
-	case ".zip":				// ROM set
-		gamename := basename[:len(basename) - 4]
-		g, err := getgame(gamename)
-		if err != fuse.OK {
-			return nil, err
-		}
-		// TODO worry about closing the file?
-		return getloopbackfile(g.ROMLoc)
-	case ".chd":				// CHD
-		gamename, chdname := getchdparts(name)
-		if gamename == "" {		// we need a game name to disambiguate
-			return nil, fuse.ENOENT
-		}
-		g, err := getgame(gamename)
-		if err != fuse.OK {
-			return nil, err
-		}
-		// TODO worry about closing the file?
-		return getloopbackfile(g.CHDLoc[chdname])
+	ferr = r.open(r.g.CHDLoc[r.name])
+	if ferr != nil {
+		return nil, ferr
 	}
-	return nil, fuse.ENOENT		// otherwise 404
-}
-
-func (fs *mamefuse) OpenDir(name string, context *fuse.Context) (c []fuse.DirEntry, code fuse.Status) {
-	// TODO
-	return nil, fuse.ENOENT
+	return r, nil
 }

@@ -6,6 +6,7 @@ import (
 	"encoding/xml"
 	"strings"
 	"io"
+	"code.google.com/p/rsc/fuse"
 	"log"
 )
 
@@ -44,7 +45,7 @@ type Game struct {
 
 var games = map[string]*Game{}
 
-func getGames(filename string) {
+func getGames(filename string) *fuse.Tree {
 	f, err := os.Open(filename)
 	if err != nil {
 		log.Fatalf("could not open MAME XML file %s: %v", filename, err)
@@ -52,6 +53,7 @@ func getGames(filename string) {
 	defer f.Close()
 
 	mamexml := xml.NewDecoder(f)
+	fstree := new(fuse.Tree)
 
 	// skip to the first game
 findFirst:
@@ -84,5 +86,8 @@ findFirst:
 		if this.ROMOf != "" && this.ROMOf != this.CloneOf {
 			this.Parents = append(this.Parents, this.ROMOf)
 		}
+		this.AddToTree(fstree)
 	}
+
+	return fstree
 }
