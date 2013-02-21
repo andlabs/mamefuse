@@ -5,6 +5,7 @@ import (
 	"os"
 	"code.google.com/p/rsc/fuse"
 	"path/filepath"
+	"io"
 )
 
 // TODO:
@@ -52,8 +53,11 @@ func (f *FUSEFile) open(filename string) fuse.Error {
 func (f *FUSEFile) Read(req *fuse.ReadRequest, resp *fuse.ReadResponse, intr fuse.Intr) fuse.Error {
 	// TODO check to see if opened?
 	resp.Data = make([]byte, req.Size)
-	_, err := f.f.ReadAt(resp.Data, req.Offset)
-	if err != nil {
+	n, err := f.f.ReadAt(resp.Data, req.Offset)
+	if err == io.EOF {	// short read at end of file (according to os.File.ReadAt documentation)
+		// TODO this is a guess based on the source code of rsc/fuse due to the incomplete documentation; is this safe?
+		resp.Data = resp.Data[:n]
+	} else if err != nil {	// some other calamity
 		return fuse.EIO
 	}
 	return nil
