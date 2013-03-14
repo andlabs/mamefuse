@@ -1,2 +1,5 @@
 will provide documentaiton shortly
 note to self for when writing documentation: you need to be a member of group fuse
+
+TODOs:
+- tell rsc to handle Intr in fuse.Tree.ReadDir because killing that (for instance, using control-C to cancel a long ls or shell glob) panics the entire server out
