@@ -5,3 +5,4 @@ TODOs:
 - tell rsc to handle Intr in fuse.Tree.ReadDir because killing that (for instance, using control-C to cancel a long ls or shell glob) panics the entire server out
 - battles seems to require reloading the game to catch parent (xevious)
   there are several others; this is the first one for which I remember to add the TODO
+  - btoads too
